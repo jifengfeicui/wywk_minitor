@@ -1,0 +1,67 @@
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+_obj
+_test
+_testmain.go
+*.exe
+*.exe~
+*.test
+*.out
+*.prof
+*.rar
+*.zip
+*.gz
+*.7z
+*.bz2
+*.psd
+*.bmd
+*.cfg
+*.pptx
+*.log
+*nohup.out
+*settings.pyc
+*.sublime-project
+*.sublime-workspace
+!.gitkeep
+Thumbs.db
+.DS_Store
+*.cert
+*.key
+# Develop tools
+*.swp
+.idea
+out/
+output/
+### vscode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.VSCodeCounter
+.task/
+# File-based project format
+*.iws
+# Project
+_*
+/vendor/
+/Godeps/
+go.work
+*.local.yml
+dumped_hertz_remote_config.json
+bin/
+configs/
+config.* !config.go
+tmp/
+logs/
+*.db
+*.sqlite
+config.yaml
+config.yml
+*.env
+files/
+storage/
