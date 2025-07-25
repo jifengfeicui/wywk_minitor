@@ -7,8 +7,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
+
+type ShopInfoData struct {
+	StoreName    string `json:"storeName"`
+	StoreAddress string `json:"storeAddress"`
+	ShopStatus   string `json:"shopStatus"`
+}
+
+type ShopInfoResponse struct {
+	Data ShopInfoData `json:"data"`
+}
 
 type ClientInfo struct {
 	RoomCode    string `json:"roomCode"`
@@ -41,6 +52,25 @@ type Response struct {
 }
 
 func getShopStats(commonCode string) (string, error) {
+	shopInfoURL := fmt.Sprintf("https://vip-gateway.wywk.cn/asset-svc/shop/store/portal/baseMessage?commonCode=%s", commonCode)
+	resp, err := http.Get(shopInfoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to get shop info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var shopInfoResponse ShopInfoResponse
+	json.Unmarshal(body, &shopInfoResponse)
+
+	if shopInfoResponse.Data.ShopStatus != "营业中" {
+		return fmt.Sprintf("店名: %s\n地址: %s\n状态: %s", shopInfoResponse.Data.StoreName, shopInfoResponse.Data.StoreAddress, shopInfoResponse.Data.ShopStatus), nil
+	}
+
 	apiURL := "https://vip-gateway.wywk.cn/surf-internet/shop/v3/get"
 	payload := map[string]string{"commonCode": commonCode}
 	jsonPayload, _ := json.Marshal(payload)
@@ -52,13 +82,13 @@ func getShopStats(commonCode string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -89,6 +119,7 @@ func getShopStats(commonCode string) (string, error) {
 	}
 
 	var result strings.Builder
+	result.WriteString(fmt.Sprintf("店名: %s\n地址: %s\n", shopInfoResponse.Data.StoreName, shopInfoResponse.Data.StoreAddress))
 	result.WriteString(fmt.Sprintf("总设备: %d, 在用: %d\n", totalDevices, usedDevices))
 	if totalDevices > 0 {
 		usageRate := float64(usedDevices) / float64(totalDevices) * 100
@@ -160,6 +191,26 @@ func req(commonCode string) {
 	}
 }
 
+type Config struct {
+	CommonCodes []string `json:"commonCodes"`
+}
+
 func main() {
-	req("0437")
+	configFile, err := os.Open("config.json")
+	if err != nil {
+		fmt.Println("Error opening config file:", err)
+		return
+	}
+	defer configFile.Close()
+
+	var config Config
+	jsonParser := json.NewDecoder(configFile)
+	if err = jsonParser.Decode(&config); err != nil {
+		fmt.Println("Error parsing config file:", err)
+		return
+	}
+
+	for _, commonCode := range config.CommonCodes {
+		req(commonCode)
+	}
 }
