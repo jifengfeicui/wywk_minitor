@@ -5,12 +5,15 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	. "wywk/models" // Import models from the models package
 )
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("wywk.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("wywk.db"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // 全局不打印 SQL
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"gorm.io/gorm"
 
 	"wywk/api"
+	"wywk/daily"
 	"wywk/db"
 	"wywk/notification"
 )
@@ -25,9 +27,9 @@ func processShop(db *gorm.DB, commonCode string, barkTokens []string) {
 		return
 	}
 
-	fmt.Println(stats)
-
-	notification.SendBarkNotifications(barkTokens, stats, shopName)
+	//fmt.Println(stats)
+	//notification.SendBarkNotifications(barkTokens, stats, shopName)
+	_, _ = stats, shopName
 }
 
 type Config struct {
@@ -49,7 +51,7 @@ func ChangeWorkingDir() {
 	}
 }
 
-func main() {
+func crawlData() {
 	ChangeWorkingDir()
 	// --- Config Loading ---
 	configFile, err := os.Open("config.json")
@@ -70,5 +72,39 @@ func main() {
 	// --- Main Logic ---
 	for _, commonCode := range config.CommonCodes {
 		processShop(db, commonCode, config.BarkTokens)
+	}
+}
+
+func main() {
+	// 1. Crawl live data and save it.
+	crawlData()
+
+	// 2. If it's between 00:00 and 01:00, generate and send a report from DB.
+	now := time.Now()
+	if now.Hour() == 0 {
+		log.Println("Running daily report job...")
+		ChangeWorkingDir()
+
+		// --- Config Loading ---
+		configFile, err := os.Open("config.json")
+		if err != nil {
+			log.Fatalf("Error opening config file for reporting: %v", err)
+		}
+		defer configFile.Close()
+
+		var config Config
+		jsonParser := json.NewDecoder(configFile)
+		if err = jsonParser.Decode(&config); err != nil {
+			log.Fatalf("Error parsing config file for reporting: %v", err)
+		}
+
+		// --- Database Setup ---
+		db := db.InitDB()
+
+		// --- Reporting Logic ---
+		for _, commonCode := range config.CommonCodes {
+			daily.GenerateAndSendDailyReport(db, commonCode, config.BarkTokens)
+		}
+		log.Println("Daily report job finished.")
 	}
 }

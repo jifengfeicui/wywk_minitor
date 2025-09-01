@@ -1,6 +1,8 @@
 package notification
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -9,7 +11,7 @@ import (
 	"strings"
 )
 
-func sendBarkNotification(barkBaseURL, message, shopName string) error {
+func sendBarkNotification_get(barkBaseURL, message, shopName string) error {
 	// Ensure barkBaseURL has a scheme
 	if !strings.Contains(barkBaseURL, "://") {
 		barkBaseURL = "https://api.day.app/" + barkBaseURL
@@ -20,6 +22,40 @@ func sendBarkNotification(barkBaseURL, message, shopName string) error {
 	finalURL := fmt.Sprintf("%s/%s?group=%s", barkBaseURL, escapedMessage, url.QueryEscape(shopName))
 
 	resp, err := http.Get(finalURL)
+	if err != nil {
+		return fmt.Errorf("failed to send bark notification: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("bark notification failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("Bark notification sent successfully for %s!", shopName)
+	return nil
+}
+
+func sendBarkNotification(barkBaseURL, message, shopName string) error {
+	// Ensure barkBaseURL has a scheme
+	if !strings.Contains(barkBaseURL, "://") {
+		barkBaseURL = "https://api.day.app/" + barkBaseURL
+	}
+	barkBaseURL = strings.TrimRight(barkBaseURL, "/")
+
+	// Bark POST JSON 格式
+	payload := map[string]string{
+		"title": shopName,
+		"body":  message,
+		"group": shopName, // 用 shopName 分组
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	resp, err := http.Post(barkBaseURL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to send bark notification: %w", err)
 	}
